@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+alert_call.log
+venv/
+.venv/
+gen_b64.py
+debug_oref.py
+
+# Test files with real credentials/phone numbers
+test_call_079.py
+test_call_me.py
+
+# Phone number data files (contain real numbers)
+phone_numbers.json
+end_event_numbers.json

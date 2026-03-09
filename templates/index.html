@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול מספרי טלפון - שירות התרעות</title>
+    <style>
+        :root {
+            --primary: #e53935;
+            --primary-dark: #b71c1c;
+            --success: #43a047;
+            --warning: #fb8c00;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #212121;
+            --text-secondary: #757575;
+            --border: #e0e0e0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 24px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .logout-btn {
+            position: absolute;
+            left: 16px;
+            top: 16px;
+            text-decoration: none;
+            font-size: 1.5em;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .logout-btn:hover {
+            opacity: 1;
+        }
+
+        .header h1 {
+            font-size: 1.6em;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        .status-bar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: var(--shadow);
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-item .num {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .status-item .label {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card h2 {
+            font-size: 1.15em;
+            margin-bottom: 16px;
+            color: var(--primary-dark);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .form-row input {
+            flex: 1;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+            direction: ltr;
+            text-align: left;
+            transition: border-color 0.2s;
+        }
+
+        .form-row input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-row input[name="name"] {
+            direction: rtl;
+            text-align: right;
+            max-width: 160px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .phone-list {
+            list-style: none;
+        }
+
+        .phone-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+
+        .phone-item:last-child {
+            border-bottom: none;
+        }
+
+        .phone-item.inactive {
+            opacity: 0.5;
+        }
+
+        .phone-info {
+            flex: 1;
+        }
+
+        .phone-number {
+            font-size: 1.05em;
+            font-weight: 600;
+            direction: ltr;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .phone-name {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .phone-status {
+            font-size: 0.75em;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .phone-status.active {
+            background: #e8f5e9;
+            color: var(--success);
+        }
+
+        .phone-status.inactive {
+            background: #fff3e0;
+            color: var(--warning);
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1em;
+            transition: all 0.2s;
+        }
+
+        .btn-toggle {
+            background: #e8f5e9;
+            color: var(--success);
+        }
+
+        .btn-toggle:hover {
+            background: #c8e6c9;
+        }
+
+        .btn-toggle.off {
+            background: #fff3e0;
+            color: var(--warning);
+        }
+
+        .btn-toggle.off:hover {
+            background: #ffe0b2;
+        }
+
+        .btn-delete {
+            background: #ffebee;
+            color: var(--primary);
+        }
+
+        .btn-delete:hover {
+            background: #ffcdd2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 3em;
+            margin-bottom: 12px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            background: var(--primary);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hint {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                flex-direction: column;
+            }
+            .form-row input[name="name"] {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 ניהול מספרי טלפון</h1>
+        <p>הוספה והסרה של מספרים לשירות ההתרעות</p>
+    </div>
+
+    <div class="container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="num" id="totalCount">-</div>
+                <div class="label">מספרי התרעה</div>
+            </div>
+            <div class="status-item">
+                <div class="num" id="activeCount">-</div>
+                <div class="label">פעילים</div>
+            </div>
+            <div class="status-item" style="border-right: 2px solid var(--border); padding-right: 16px;">
+                <div class="num" id="endTotalCount" style="color: var(--success);">-</div>
+                <div class="label">מספרי סיום אירוע</div>
+            </div>
+            <div class="status-item">
+                <div class="num" id="endActiveCount" style="color: var(--success);">-</div>
+                <div class="label">פעילים</div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- ALERT NUMBERS SECTION -->
+        <!-- ============================================================= -->
+        <div class="section-header">🚨 מספרים להתרעת אזעקה</div>
+
+        <!-- Add Number Form -->
+        <div class="card">
+            <h2>➕ הוספת מספר חדש</h2>
+            <form id="addForm" onsubmit="addNumber(event, 'alert')">
+                <div class="form-row">
+                    <input type="tel" name="number" placeholder="+972501234567" required
+                           pattern="[\+\d\s\-\(\)]+" dir="ltr">
+                    <input type="text" name="name" placeholder="שם (אופציונלי)">
+                </div>
+                <button type="submit" class="btn btn-primary" id="addBtn">
+                    הוספת מספר
+                </button>
+                <div class="hint">מספרים אלה יתקשרו כשיש אזעקה באזור תל אביב</div>
+            </form>
+        </div>
+
+        <!-- Phone Numbers List -->
+        <div class="card">
+            <h2>📋 רשימת מספרי התרעה</h2>
+            <div id="phoneList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>טוען...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- END-EVENT NUMBERS SECTION -->
+        <!-- ============================================================= -->
+        <div class="section-header" style="background: linear-gradient(135deg, var(--success), #2e7d32);">✅ מספרים לסיום אירוע</div>
+
+        <!-- Add End-Event Number Form -->
+        <div class="card" style="border-top: 3px solid var(--success);">
+            <h2 style="color: var(--success);">➕ הוספת מספר לסיום אירוע</h2>
+            <form id="addEndForm" onsubmit="addNumber(event, 'end')">
+                <div class="form-row">
+                    <input type="tel" name="number" placeholder="+972501234567" required
+                           pattern="[\+\d\s\-\(\)]+" dir="ltr">
+                    <input type="text" name="name" placeholder="שם (אופציונלי)">
+                </div>
+                <button type="submit" class="btn btn-primary" id="addEndBtn" 
+                        style="background: var(--success);">
+                    הוספת מספר
+                </button>
+                <div class="hint">מספרים אלה יתקשרו כשהאירוע מסתיים (ניתן לצאת מהמרחב המוגן)</div>
+            </form>
+        </div>
+
+        <!-- End-Event Phone Numbers List -->
+        <div class="card" style="border-top: 3px solid var(--success);">
+            <h2 style="color: var(--success);">📋 רשימת מספרי סיום אירוע</h2>
+            <div id="endPhoneList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>טוען...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // =================================================================
+        // Auth token (injected by server)
+        // =================================================================
+        const TOKEN = "{{ token }}";
+
+        function apiUrl(path) {
+            const sep = path.includes('?') ? '&' : '?';
+            return path + sep + 'token=' + TOKEN;
+        }
+
+        // =================================================================
+        // Toast notifications
+        // =================================================================
+        let toastTimeout;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        // =================================================================
+        // API calls
+        // =================================================================
+        async function fetchNumbers() {
+            try {
+                const [alertRes, endRes] = await Promise.all([
+                    fetch(apiUrl('/api/numbers')),
+                    fetch(apiUrl('/api/end-numbers'))
+                ]);
+                const alertData = await alertRes.json();
+                const endData = await endRes.json();
+                if (alertData.success) {
+                    renderNumbers(alertData.numbers, 'phoneList', 'alert');
+                }
+                if (endData.success) {
+                    renderNumbers(endData.numbers, 'endPhoneList', 'end');
+                }
+                updateStatus(
+                    alertData.success ? alertData.numbers : [],
+                    endData.success ? endData.numbers : []
+                );
+            } catch (e) {
+                showToast('שגיאה בטעינת הנתונים', 'error');
+            }
+        }
+
+        async function addNumber(event, listType) {
+            event.preventDefault();
+            const formId = listType === 'end' ? 'addEndForm' : 'addForm';
+            const btnId = listType === 'end' ? 'addEndBtn' : 'addBtn';
+            const apiPath = listType === 'end' ? '/api/end-numbers' : '/api/numbers';
+
+            const form = document.getElementById(formId);
+            const btn = document.getElementById(btnId);
+            const number = form.number.value.trim();
+            const name = form.name.value.trim();
+
+            btn.disabled = true;
+            btn.textContent = 'מוסיף...';
+
+            try {
+                const res = await fetch(apiUrl(apiPath), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ number, name })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('המספר נוסף בהצלחה! ✅');
+                    form.reset();
+                    fetchNumbers();
+                } else {
+                    showToast(data.error || 'שגיאה בהוספה', 'error');
+                }
+            } catch (e) {
+                showToast('שגיאת תקשורת', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'הוספת מספר';
+            }
+        }
+
+        async function removeNumber(number, listType) {
+            if (!confirm(`למחוק את המספר ${number}?`)) return;
+            const apiPath = listType === 'end' ? '/api/end-numbers' : '/api/numbers';
+
+            try {
+                const res = await fetch(apiUrl(`${apiPath}/${encodeURIComponent(number)}`), {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('המספר הוסר בהצלחה 🗑️');
+                    fetchNumbers();
+                } else {
+                    showToast(data.error || 'שגיאה במחיקה', 'error');
+                }
+            } catch (e) {
+                showToast('שגיאת תקשורת', 'error');
+            }
+        }
+
+        async function toggleNumber(number, listType) {
+            const apiPath = listType === 'end' ? '/api/end-numbers' : '/api/numbers';
+            try {
+                const res = await fetch(apiUrl(`${apiPath}/${encodeURIComponent(number)}/toggle`), {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const state = data.active ? 'הופעל ✅' : 'הושבת ⏸️';
+                    showToast(`המספר ${state}`);
+                    fetchNumbers();
+                } else {
+                    showToast(data.error || 'שגיאה', 'error');
+                }
+            } catch (e) {
+                showToast('שגיאת תקשורת', 'error');
+            }
+        }
+
+        // =================================================================
+        // Rendering
+        // =================================================================
+        function renderNumbers(numbers, containerId, listType) {
+            const container = document.getElementById(containerId);
+            const emptyIcon = listType === 'end' ? '✅' : '📱';
+            const emptyText = listType === 'end' 
+                ? 'אין מספרים לסיום אירוע' 
+                : 'אין מספרי התרעה ברשימה';
+
+            if (numbers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">${emptyIcon}</div>
+                        <p>${emptyText}</p>
+                        <p>הוסיפו מספר טלפון למעלה כדי להתחיל</p>
+                    </div>`;
+                return;
+            }
+
+            let html = '<ul class="phone-list">';
+            for (const item of numbers) {
+                const isActive = item.active !== false;
+                const statusClass = isActive ? 'active' : 'inactive';
+                const statusText = isActive ? 'פעיל' : 'מושבת';
+                const toggleIcon = isActive ? '⏸️' : '▶️';
+                const toggleClass = isActive ? '' : 'off';
+
+                html += `
+                    <li class="phone-item ${isActive ? '' : 'inactive'}">
+                        <div class="phone-info">
+                            <div class="phone-number">${escapeHtml(item.number)}</div>
+                            ${item.name ? `<div class="phone-name">${escapeHtml(item.name)}</div>` : ''}
+                        </div>
+                        <span class="phone-status ${statusClass}">${statusText}</span>
+                        <button class="btn-icon btn-toggle ${toggleClass}" 
+                                onclick="toggleNumber('${escapeJs(item.number)}', '${listType}')"
+                                title="${isActive ? 'השבת' : 'הפעל'}">
+                            ${toggleIcon}
+                        </button>
+                        <button class="btn-icon btn-delete" 
+                                onclick="removeNumber('${escapeJs(item.number)}', '${listType}')"
+                                title="מחק">
+                            🗑️
+                        </button>
+                    </li>`;
+            }
+            html += '</ul>';
+            container.innerHTML = html;
+        }
+
+        function updateStatus(alertNumbers, endNumbers) {
+            document.getElementById('totalCount').textContent = alertNumbers.length;
+            document.getElementById('activeCount').textContent = 
+                alertNumbers.filter(n => n.active !== false).length;
+            document.getElementById('endTotalCount').textContent = endNumbers.length;
+            document.getElementById('endActiveCount').textContent = 
+                endNumbers.filter(n => n.active !== false).length;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeJs(text) {
+            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
+        // =================================================================
+        // Init
+        // =================================================================
+        fetchNumbers();
+        // Auto-refresh every 30 seconds
+        setInterval(fetchNumbers, 30000);
+    </script>
+</body>
+</html>
