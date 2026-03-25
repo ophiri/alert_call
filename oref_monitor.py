@@ -33,7 +33,11 @@ class OrefAlertMonitor:
         # Track currently active alerts to detect when they end
         self._active_alert_areas: set[str] = set()
         self._alert_active = False
-        self._last_response_empty = False  # Set by check_alerts() when API returns empty
+        # Counter for consecutive empty API responses (used for end-of-event detection)
+        self._consecutive_empty_count = 0
+        # Require N consecutive empty polls before declaring end-of-event
+        # At 2s poll interval, 5 polls = 10 seconds of confirmed silence
+        self._END_EVENT_EMPTY_THRESHOLD = 5
 
         logger.info("OrefAlertMonitor initialized.")
         if config.MONITORED_AREAS:
@@ -185,7 +189,7 @@ class OrefAlertMonitor:
                 if self._consecutive_errors > 0:
                     logger.info("API recovered after %d errors", self._consecutive_errors)
                 self._consecutive_errors = 0
-                self._last_response_empty = True
+                self._consecutive_empty_count += 1
                 return None
 
             # Quick check: if the raw response is identical to last time, skip entirely
@@ -206,10 +210,10 @@ class OrefAlertMonitor:
 
             if not data:
                 self._consecutive_errors = 0
-                self._last_response_empty = True
+                self._consecutive_empty_count += 1
                 return None
 
-            self._last_response_empty = False
+            self._consecutive_empty_count = 0
             logger.warning("RAW ALERT DATA: %s", str(data)[:500])
 
             if isinstance(data, dict):
@@ -326,23 +330,32 @@ class OrefAlertMonitor:
         """Mark areas as having an active alert."""
         self._active_alert_areas.update(areas)
         self._alert_active = True
+        # Reset empty counter so end-event detection starts fresh
+        self._consecutive_empty_count = 0
         logger.info("Active alert areas: %s", ", ".join(self._active_alert_areas))
 
     def check_alert_ended(self) -> list[str] | None:
         """
         Check if a previously active alert has ended.
-        Uses the cached _last_response_empty flag set by check_alerts().
-        No additional API call is made.
+        Requires multiple consecutive empty API responses to confirm
+        the alert has truly ended (avoids false triggers from brief
+        API hiccups or race conditions with the history API).
         """
         if not self._alert_active:
             return None
 
-        if self._last_response_empty:
+        if self._consecutive_empty_count >= self._END_EVENT_EMPTY_THRESHOLD:
             ended_areas = list(self._active_alert_areas)
-            logger.info("\u2705 Alert ENDED for areas: %s", ", ".join(ended_areas))
+            logger.info("\u2705 Alert ENDED for areas: %s (after %d consecutive empty responses)",
+                        ", ".join(ended_areas), self._consecutive_empty_count)
             self._active_alert_areas.clear()
             self._alert_active = False
+            self._consecutive_empty_count = 0
             return ended_areas if ended_areas else None
+
+        if self._consecutive_empty_count > 0:
+            logger.debug("Waiting for end-of-event confirmation: %d/%d empty responses",
+                         self._consecutive_empty_count, self._END_EVENT_EMPTY_THRESHOLD)
 
         return None
 
