@@ -4,6 +4,7 @@ Handles making phone calls via the Twilio API when alerts are triggered.
 Supports calling multiple phone numbers managed via the web interface.
 """
 import logging
+import time
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse
 
@@ -11,6 +12,9 @@ import config
 from phone_store import phone_store, end_event_store
 
 logger = logging.getLogger(__name__)
+
+# Per-number cooldown: no more than 1 call per number within this many seconds
+PER_NUMBER_COOLDOWN_SECONDS = 180  # 3 minutes
 
 
 class PhoneCaller:
@@ -25,6 +29,8 @@ class PhoneCaller:
 
         self.client = Client(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN)
         self.from_number = config.TWILIO_PHONE_NUMBER
+        # Track last call time per phone number to enforce cooldown
+        self._last_call_per_number: dict[str, float] = {}
         logger.info("PhoneCaller initialized. Calls will be made from %s", self.from_number)
 
     def _build_twiml(self, areas: list[str]) -> str:
@@ -40,6 +46,18 @@ class PhoneCaller:
             response.pause(length=1)
 
         return str(response)
+
+    def _is_number_on_cooldown(self, number: str) -> bool:
+        """Check if a phone number was called recently (within cooldown period)."""
+        last_call = self._last_call_per_number.get(number)
+        if last_call is None:
+            return False
+        elapsed = time.time() - last_call
+        return elapsed < PER_NUMBER_COOLDOWN_SECONDS
+
+    def _record_call(self, number: str):
+        """Record that a call was made to this number right now."""
+        self._last_call_per_number[number] = time.time()
 
     def make_alert_call(self, areas: list[str]) -> str | None:
         """
@@ -59,12 +77,17 @@ class PhoneCaller:
 
         first_sid = None
         for to_number in active_numbers:
+            if self._is_number_on_cooldown(to_number):
+                remaining = int(PER_NUMBER_COOLDOWN_SECONDS - (time.time() - self._last_call_per_number[to_number]))
+                logger.info("Skipping %s — called recently, cooldown %ds remaining", to_number, remaining)
+                continue
             try:
                 call = self.client.calls.create(
                     twiml=twiml,
                     to=to_number,
                     from_=self.from_number,
                 )
+                self._record_call(to_number)
                 logger.info("Call initiated to %s! SID: %s", to_number, call.sid)
                 if first_sid is None:
                     first_sid = call.sid
@@ -104,12 +127,17 @@ class PhoneCaller:
 
         first_sid = None
         for to_number in active_numbers:
+            if self._is_number_on_cooldown(to_number):
+                remaining = int(PER_NUMBER_COOLDOWN_SECONDS - (time.time() - self._last_call_per_number[to_number]))
+                logger.info("Skipping end-event call to %s — called recently, cooldown %ds remaining", to_number, remaining)
+                continue
             try:
                 call = self.client.calls.create(
                     twiml=twiml,
                     to=to_number,
                     from_=self.from_number,
                 )
+                self._record_call(to_number)
                 logger.info("End-event call initiated to %s! SID: %s", to_number, call.sid)
                 if first_sid is None:
                     first_sid = call.sid
